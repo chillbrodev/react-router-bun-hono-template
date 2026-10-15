@@ -1,21 +1,22 @@
 import { data, isRouteErrorResponse, Link } from "react-router";
 import { StatBar } from "~/components/stat-bar";
 import { TypeBadge } from "~/components/type-badge";
-import { getAdjacentSpecies, getPokemon } from "~/lib/pokedex.server";
 import {
   artworkUrl,
   formatDexNumber,
   formatName,
   spriteUrl,
 } from "~/lib/pokemon";
+import { pokedexContext } from "~/server/context";
 import type { Route } from "./+types/pokemon";
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const pokemon = await getPokemon(params.name);
+export async function loader({ params, context }: Route.LoaderArgs) {
+  const pokedex = context.get(pokedexContext);
+  const pokemon = await pokedex.getPokemon(params.name);
   if (!pokemon) {
     throw data(`No Pokémon named “${params.name}”`, { status: 404 });
   }
-  const { prev, next } = await getAdjacentSpecies(pokemon.id);
+  const { prev, next } = await pokedex.getAdjacentSpecies(pokemon.id);
   return { pokemon, prev, next };
 }
 

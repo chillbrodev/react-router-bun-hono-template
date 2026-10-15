@@ -31,12 +31,14 @@
     "check": "biome check --write ."
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
     "hono": "^4.13.13",
     "isbot": "^5.2.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.4.0",
-    "react-router-hono-server": "^4.1.4"
+    "react-router-hono-server": "^4.1.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

@@ -14,6 +14,11 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  optimizeDeps: {
+    // Pre-bundle up front so Vite doesn't discover it mid-session and force a
+    // full reload (which can leave the browser with two copies of React)
+    include: ["hono/client"],
+  },
   plugins: [
     tailwindcss(),
     // Order matters: cloudflare() → reactRouterHonoServer() → reactRouter()

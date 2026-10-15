@@ -205,6 +205,15 @@ export async function getPokemon(
   };
 }
 
+/** A random Pokémon from the National Dex. */
+export async function getRandomPokemon(): Promise<PokemonSummary> {
+  const species = await getAllSpecies();
+  const pick = species[Math.floor(Math.random() * species.length)];
+  if (!pick) throw new Error("Species list is empty");
+  const pokemon = await get<ApiPokemon>(`/pokemon/${pick.id}`);
+  return { id: pick.id, name: pick.name, types: toTypes(pokemon.types) };
+}
+
 /** The species immediately before and after `id` in National Dex order. */
 export async function getAdjacentSpecies(id: number) {
   const species = await getAllSpecies();

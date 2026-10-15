@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Form, Link, useNavigation, useSubmit } from "react-router";
 import { PokemonCard } from "~/components/pokemon-card";
-import { searchPokemon } from "~/lib/pokedex.server";
+import { RandomPokemonButton } from "~/components/random-pokemon-button";
 import { formatName, isPokemonType, POKEMON_TYPES } from "~/lib/pokemon";
+import { pokedexContext } from "~/server/context";
 import type { Route } from "./+types/home";
 
 export const meta: Route.MetaFunction = () => [
@@ -17,13 +18,15 @@ export const headers: Route.HeadersFunction = () => ({
   "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
 });
 
-export async function loader({ url }: Route.LoaderArgs) {
+export async function loader({ url, context }: Route.LoaderArgs) {
   const query = url.searchParams.get("q") ?? "";
   const typeParam = url.searchParams.get("type");
   const type = isPokemonType(typeParam) ? typeParam : null;
   const page = Number(url.searchParams.get("page")) || 1;
 
-  const result = await searchPokemon({ query, type, page });
+  const result = await context
+    .get(pokedexContext)
+    .searchPokemon({ query, type, page });
   return { ...result, query, type };
 }
 
@@ -65,12 +68,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="space-y-8">
       <section aria-labelledby="search-heading" className="space-y-4">
-        <h1
-          id="search-heading"
-          className="text-3xl font-bold tracking-tight sm:text-4xl"
-        >
-          Find your Pokémon
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1
+            id="search-heading"
+            className="text-3xl font-bold tracking-tight sm:text-4xl"
+          >
+            Find your Pokémon
+          </h1>
+          <RandomPokemonButton />
+        </div>
 
         <Form
           ref={formRef}

@@ -20,6 +20,7 @@ The demo app is a lightweight **Pokédex** backed by [PokéAPI](https://pokeapi.
 ## Features
 
 - 🚀 Server-side rendering (w/ Bun & Hono Server!)
+- 🔥 Hono middleware, a typed JSON API with Zod validation, and an end-to-end typed `hc` client
 - ⚡️ Hot Module Replacement (HMR)
 - 📦 Asset bundling and optimization
 - 🔄 Data loading and mutations
@@ -28,6 +29,34 @@ The demo app is a lightweight **Pokédex** backed by [PokéAPI](https://pokeapi.
 - 📖 [React Router docs](https://reactrouter.com/)
 - 🧪 Vitest + React Testing Library for testing
 - 🔍 BiomeJS for code linting & formatting
+
+## How Hono and React Router fit together
+
+[`react-router-hono-server`](https://github.com/rphlmr/react-router-hono-server) runs React Router *inside* a Hono app. Hono handles each request first, so middleware, API routes and request context sit in front of the React app:
+
+```
+request → Hono middleware (request id, timing, security headers)
+        ├─ /api/*     → Hono JSON API          app/server/api.ts
+        ├─ /healthz   → Hono route
+        └─ everything else → React Router (SSR) app/routes/*
+```
+
+| File | What it shows |
+| --- | --- |
+| `app/server/app.ts` | Shared Hono setup: middleware, mounting the API, error handling, and `getLoadContext` |
+| `app/server/api.ts` | A typed JSON API with [Zod](https://zod.dev) validation (`/api/pokemon`, `/api/pokemon/:name`, `/api/pokemon/random`) |
+| `app/server/context.ts` | Values Hono passes to React Router loaders via `RouterContextProvider` |
+| `app/server/bun.ts`, `app/server/cloudflare.ts` | One small entry per runtime; both reuse `app.ts` |
+| `app/lib/api-client.ts` | Hono's `hc` client: browser calls to the API are type-checked end to end (used by the "Surprise me" button) |
+| `app/server/api.test.ts` | Testing API routes in memory with `hono/testing`, no server needed |
+
+Try it:
+
+```bash
+curl "localhost:5173/api/pokemon?q=char&type=fire"
+curl -i localhost:5173/api/pokemon/pikachu    # see X-Request-Id and Server-Timing headers
+curl "localhost:5173/api/pokemon?type=bogus"  # validation error (400)
+```
 
 ## Getting Started
 
