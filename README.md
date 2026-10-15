@@ -13,7 +13,9 @@
 
 A modern, production-ready template for building full-stack React applications using React Router with Bun and Hono.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/jpcpereira93/react-router-bun-hono-template/tree/main/default)
+The demo app is a lightweight **Pokédex** backed by [PokéAPI](https://pokeapi.co/docs/v2): search by name or number, filter by type, and view stats, abilities, and evolution chains. All API calls happen in server loaders (`app/lib/pokedex.server.ts`), and responses are cached in memory to respect PokéAPI's fair-use policy.
+
+<a href="https://www.flaticon.com/free-icons/pokemon" title="pokemon icons">Pokemon icons created by Darius Dan - Flaticon and used as the Favicon</a>
 
 ## Features
 
@@ -22,7 +24,7 @@ A modern, production-ready template for building full-stack React applications u
 - 📦 Asset bundling and optimization
 - 🔄 Data loading and mutations
 - 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
+- 🎉 Tailwind CSS v4 for styling
 - 📖 [React Router docs](https://reactrouter.com/)
 - 🧪 Vitest + React Testing Library for testing
 - 🔍 BiomeJS for code linting & formatting
@@ -31,11 +33,13 @@ A modern, production-ready template for building full-stack React applications u
 
 ### Prerequisites
 
-This template uses [bun](https://bun.sh/) as the package manager and Javascript Runtime. So, you need to install `bun` globally:
+This template uses [bun](https://bun.sh/) (v1.4+) as the package manager and Javascript Runtime. So, you need to install `bun` globally:
 
   ```bash
   curl -fsSL https://bun.sh/install | bash
   ```
+
+The React Router and `react-router-hono-server` CLIs also require [Node.js](https://nodejs.org/) v24.19+ to be available.
 
 ### Installation
 
@@ -96,7 +100,7 @@ Make sure to deploy the output of `bun run build`
 
 ```
 ├── package.json
-├── bun.lockb
+├── bun.lock
 ├── build/
 │   ├── client/    # Static assets
 │   └── server/    # Server-side code
@@ -138,6 +142,6 @@ bun run test:watch
 
 ## Styling
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+This template comes with [Tailwind CSS](https://tailwindcss.com/) v4 already configured via the `@tailwindcss/vite` plugin. Theme customizations live in `app/app.css` under the `@theme` directive. You can use whatever CSS framework you prefer.
 
 ---
