@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "poke-router-bun",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./app/server/cloudflare.ts",
+  "assets": {
+    "directory": "./build/client",
+    "binding": "ASSETS"
+  },
+  // Serves the Worker at https://poke-router-bun.<subdomain>.workers.dev
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+}

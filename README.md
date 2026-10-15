@@ -92,6 +92,18 @@ The containerized application can be deployed to any platform that supports Dock
 - Fly.io
 - Railway
 
+### Cloudflare Workers
+
+The app can also run on [Cloudflare Workers](https://developers.cloudflare.com/workers/) (Cloudflare's current recommendation for full-stack apps, replacing Pages). The same code serves both targets; `DEPLOY_TARGET=cloudflare` swaps the Bun server (`app/server/bun.ts`) for the Worker entry (`app/server/cloudflare.ts`).
+
+```bash
+bun run dev:cf      # local dev in Cloudflare's runtime (workerd)
+bun run preview:cf  # build and preview the production Worker locally
+bun run deploy      # build and deploy with Wrangler
+```
+
+The live demo is at https://poke-router-bun.jon-e0c.workers.dev. Worker settings live in `wrangler.jsonc`; run `bunx wrangler login` once before deploying.
+
 ### DIY Deployment
 
 If you're familiar with deploying Node or Bun applications, the built-in app server is production-ready.

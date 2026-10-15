@@ -20,6 +20,11 @@
     "build": "bunx --bun react-router build",
     "dev": "bunx --bun vite",
     "start": "NODE_ENV=production bun ./build/server/index.js",
+    "dev:cf": "DEPLOY_TARGET=cloudflare vite dev",
+    "build:cf": "DEPLOY_TARGET=cloudflare react-router build",
+    "preview:cf": "bun run build:cf && DEPLOY_TARGET=cloudflare vite preview",
+    "deploy": "bun run build:cf && wrangler deploy",
+    "cf-typegen": "wrangler types",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "react-router typegen && tsc --noEmit",
@@ -35,6 +40,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
+    "@cloudflare/vite-plugin": "^1.64.0",
     "@react-router/dev": "^8.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
@@ -48,6 +54,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.0"
   }
 }
