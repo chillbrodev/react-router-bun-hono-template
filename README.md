@@ -58,6 +58,29 @@ curl -i localhost:5173/api/pokemon/pikachu    # see X-Request-Id and Server-Timi
 curl "localhost:5173/api/pokemon?type=bogus"  # validation error (400)
 ```
 
+## Server-side rendering patterns
+
+Every page is rendered on the server. These are the SSR techniques the demo uses, and where to find them:
+
+| Pattern | Where | What to look for |
+| --- | --- | --- |
+| **Loaders + SEO** | `routes/pokemon.tsx` | Data fetched on the server before render; `meta` builds the title, description and `og:image` from it |
+| **Streaming with `<Await>`** | `routes/pokemon.tsx` | Type matchups and similar Pokémon are returned as *unawaited* promises. The page shell is sent right away and they stream in when ready, with skeleton fallbacks |
+| **Status codes** | `routes/pokemon.tsx` | `throw data(..., { status: 404 })` returns a real 404 with a custom `ErrorBoundary` |
+| **Middleware** | `root.tsx`, `lib/team.server.ts` | React Router middleware reads the team cookie before loaders run and writes it back after actions |
+| **Personalized SSR** | `routes/team.tsx`, header badge | Cookie-based state rendered on the server, so it's correct on first load with no client fetch |
+| **Progressive enhancement** | `components/team-toggle.tsx`, `routes/team.tsx` | Real `<form method="post">` + route `action`: works before hydration and with JavaScript off. With JS, `useFetcher` submits without a reload and updates optimistically |
+| **Cache headers** | `headers` exports | Public pages are CDN-cacheable; cookie-dependent pages send `private` + `Vary: Cookie` |
+| **Server-only code** | `*.server.ts` | Never shipped to the browser. The build fails if a component imports one by mistake |
+
+See streaming for yourself (the skeletons arrive first, data a moment later):
+
+```bash
+curl -N -A "Mozilla/5.0 Safari" localhost:5173/pokemon/garchomp
+```
+
+Crawlers get the fully rendered page in one go instead: `app/entry.server.tsx` waits for all data when `isbot` detects one.
+
 ## Getting Started
 
 ### Prerequisites

@@ -1,4 +1,6 @@
 import {
+  combineMatchups,
+  type DamageRelations,
   type EvolutionStage,
   formatName,
   idFromUrl,
@@ -6,6 +8,7 @@ import {
   type PokemonDetail,
   type PokemonSummary,
   type PokemonType,
+  type TypeMatchups,
 } from "./pokemon";
 
 const API_BASE = "https://pokeapi.co/api/v2";
@@ -53,6 +56,7 @@ interface ApiList {
 }
 interface ApiType {
   pokemon: { pokemon: NamedResource }[];
+  damage_relations: DamageRelations;
 }
 interface ApiPokemon {
   id: number;
@@ -129,16 +133,31 @@ export async function searchPokemon({
     currentPage * PAGE_SIZE,
   );
 
+  const results = await getSummaries(slice.map((s) => s.id));
+
+  return { results, total, page: currentPage, pageCount };
+}
+
+/** Card data for the given National Dex numbers, in the same order. */
+export async function getSummaries(ids: number[]): Promise<PokemonSummary[]> {
   const details = await Promise.all(
-    slice.map((s) => get<ApiPokemon>(`/pokemon/${s.id}`)),
+    ids.map((id) => get<ApiPokemon>(`/pokemon/${id}`)),
   );
-  const results: PokemonSummary[] = details.map((p) => ({
+  return details.map((p) => ({
     id: p.id,
     name: p.species.name,
     types: toTypes(p.types),
   }));
+}
 
-  return { results, total, page: currentPage, pageCount };
+/** How much damage each attacking type deals to a Pokémon with `types`. */
+export async function getTypeMatchups(
+  types: PokemonType[],
+): Promise<TypeMatchups> {
+  const relations = await Promise.all(
+    types.map((t) => get<ApiType>(`/type/${t}`)),
+  );
+  return combineMatchups(relations.map((r) => r.damage_relations));
 }
 
 function flattenEvolution(chain: ApiChainLink): EvolutionStage[][] {
@@ -203,6 +222,25 @@ export async function getPokemon(
       .replace("generation-", "")
       .toUpperCase(),
   };
+}
+
+/** Pokémon sharing `type`, closest in National Dex order to `id`. */
+export async function getSimilarPokemon(
+  id: number,
+  type: PokemonType,
+  limit = 6,
+): Promise<PokemonSummary[]> {
+  const ids = [...(await getSpeciesIdsForType(type))]
+    // Alternate forms (e.g. Mega Evolutions) have ids above 10000
+    .filter((other) => other !== id && other < 10_000)
+    .sort((a, b) => Math.abs(a - id) - Math.abs(b - id))
+    .slice(0, limit)
+    .sort((a, b) => a - b);
+  return getSummaries(ids);
+}
+
+export async function isValidSpeciesId(id: number) {
+  return (await getAllSpecies()).some((s) => s.id === id);
 }
 
 /** A random Pokémon from the National Dex. */

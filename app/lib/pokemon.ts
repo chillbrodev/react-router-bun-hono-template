@@ -110,3 +110,61 @@ export function idFromUrl(url: string): number {
   if (!match?.[1]) throw new Error(`No id found in URL: ${url}`);
   return Number(match[1]);
 }
+
+export interface DamageRelations {
+  double_damage_from: { name: string }[];
+  half_damage_from: { name: string }[];
+  no_damage_from: { name: string }[];
+}
+
+export interface TypeMatchup {
+  type: PokemonType;
+  multiplier: number;
+}
+
+export interface TypeMatchups {
+  weak: TypeMatchup[];
+  resistant: TypeMatchup[];
+  immune: PokemonType[];
+}
+
+/**
+ * Combines each defending type's damage relations into overall multipliers,
+ * e.g. Bug/Grass takes 4× from Fire (2 × 2) and ¼× from Grass (½ × ½).
+ */
+export function combineMatchups(relations: DamageRelations[]): TypeMatchups {
+  const multipliers = new Map<PokemonType, number>(
+    POKEMON_TYPES.map((t) => [t, 1]),
+  );
+  const apply = (types: { name: string }[], factor: number) => {
+    for (const { name } of types) {
+      if (isPokemonType(name)) {
+        multipliers.set(name, (multipliers.get(name) ?? 1) * factor);
+      }
+    }
+  };
+  for (const r of relations) {
+    apply(r.double_damage_from, 2);
+    apply(r.half_damage_from, 0.5);
+    apply(r.no_damage_from, 0);
+  }
+
+  const entries = [...multipliers].map(([type, multiplier]) => ({
+    type,
+    multiplier,
+  }));
+  return {
+    weak: entries
+      .filter((e) => e.multiplier > 1)
+      .sort((a, b) => b.multiplier - a.multiplier),
+    resistant: entries
+      .filter((e) => e.multiplier > 0 && e.multiplier < 1)
+      .sort((a, b) => a.multiplier - b.multiplier),
+    immune: entries.filter((e) => e.multiplier === 0).map((e) => e.type),
+  };
+}
+
+export const formatMultiplier = (m: number) =>
+  m === 0.25 ? "¼×" : m === 0.5 ? "½×" : `${m}×`;
+
+export const MAX_TEAM_SIZE = 6;

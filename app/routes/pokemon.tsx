@@ -1,27 +1,62 @@
-import { data, isRouteErrorResponse, Link } from "react-router";
+import { Suspense } from "react";
+import { Await, data, isRouteErrorResponse, Link } from "react-router";
+import { PokemonCard } from "~/components/pokemon-card";
 import { StatBar } from "~/components/stat-bar";
+import { TeamToggle } from "~/components/team-toggle";
 import { TypeBadge } from "~/components/type-badge";
 import {
   artworkUrl,
   formatDexNumber,
+  formatMultiplier,
   formatName,
+  type PokemonSummary,
   spriteUrl,
+  type TypeMatchups,
 } from "~/lib/pokemon";
+import { handleTeamAction, teamContext } from "~/lib/team.server";
 import { pokedexContext } from "~/server/context";
 import type { Route } from "./+types/pokemon";
 
 export async function loader({ params, context }: Route.LoaderArgs) {
   const pokedex = context.get(pokedexContext);
+  const team = context.get(teamContext);
+
+  // Critical data: awaited, so it's in the first HTML chunk (and in <head>)
   const pokemon = await pokedex.getPokemon(params.name);
   if (!pokemon) {
     throw data(`No Pokémon named “${params.name}”`, { status: 404 });
   }
   const { prev, next } = await pokedex.getAdjacentSpecies(pokemon.id);
-  return { pokemon, prev, next };
+
+  // Secondary data: NOT awaited. React Router streams these promises to the
+  // browser and <Await> fills them in when they resolve, so a slow PokeAPI
+  // call never delays the rest of the page.
+  const [primaryType] = pokemon.types;
+  const matchups = pokedex.getTypeMatchups(pokemon.types);
+  const similar = primaryType
+    ? pokedex.getSimilarPokemon(pokemon.id, primaryType)
+    : Promise.resolve([]);
+
+  return {
+    pokemon,
+    prev,
+    next,
+    matchups,
+    similar,
+    onTeam: team.has(pokemon.id),
+    teamFull: team.isFull,
+  };
 }
 
+export async function action({ request, context }: Route.ActionArgs) {
+  return handleTeamAction(request, context);
+}
+
+// The page now depends on the visitor's team cookie, so it must not be stored
+// in a shared (CDN) cache. Browsers may still revalidate quickly.
 export const headers: Route.HeadersFunction = () => ({
-  "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+  "Cache-Control": "private, no-cache",
+  Vary: "Cookie",
 });
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
@@ -37,7 +72,8 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 };
 
 export default function PokemonPage({ loaderData }: Route.ComponentProps) {
-  const { pokemon, prev, next } = loaderData;
+  const { pokemon, prev, next, matchups, similar, onTeam, teamFull } =
+    loaderData;
   const totalStats = pokemon.stats.reduce((sum, s) => sum + s.value, 0);
 
   return (
@@ -113,6 +149,13 @@ export default function PokemonPage({ loaderData }: Route.ComponentProps) {
             </div>
           </header>
 
+          <TeamToggle
+            id={pokemon.id}
+            name={pokemon.displayName}
+            onTeam={onTeam}
+            teamFull={teamFull}
+          />
+
           {pokemon.flavorText && (
             <blockquote className="border-l-4 border-red-600 pl-4 text-gray-700 italic dark:text-gray-300">
               {pokemon.flavorText}
@@ -129,6 +172,22 @@ export default function PokemonPage({ loaderData }: Route.ComponentProps) {
                 .join(", ")}
             />
           </dl>
+
+          <section aria-labelledby="matchups-heading" className="space-y-3">
+            <h2 id="matchups-heading" className="text-xl font-semibold">
+              Type matchups
+            </h2>
+            <Suspense fallback={<MatchupsSkeleton />}>
+              <Await
+                resolve={matchups}
+                errorElement={
+                  <StreamError>Couldn't load type matchups.</StreamError>
+                }
+              >
+                {(resolved) => <Matchups matchups={resolved} />}
+              </Await>
+            </Suspense>
+          </section>
 
           <section aria-labelledby="stats-heading" className="space-y-3">
             <h2 id="stats-heading" className="text-xl font-semibold">
@@ -191,7 +250,108 @@ export default function PokemonPage({ loaderData }: Route.ComponentProps) {
           </ol>
         </section>
       )}
+
+      <section aria-labelledby="similar-heading" className="space-y-4">
+        <h2 id="similar-heading" className="text-xl font-semibold">
+          More {pokemon.types[0] ? formatName(pokemon.types[0]) : ""} Pokémon
+        </h2>
+        <Suspense fallback={<SimilarSkeleton />}>
+          <Await
+            resolve={similar}
+            errorElement={
+              <StreamError>Couldn't load similar Pokémon.</StreamError>
+            }
+          >
+            {(resolved) => <SimilarList pokemon={resolved} />}
+          </Await>
+        </Suspense>
+      </section>
     </article>
+  );
+}
+
+function Matchups({ matchups }: { matchups: TypeMatchups }) {
+  const groups = [
+    { label: "Weak to", items: matchups.weak },
+    { label: "Resists", items: matchups.resistant },
+    {
+      label: "Immune to",
+      items: matchups.immune.map((type) => ({ type, multiplier: 0 })),
+    },
+  ].filter((g) => g.items.length > 0);
+
+  return (
+    <dl className="space-y-3">
+      {groups.map((group) => (
+        <div key={group.label} className="flex flex-wrap items-center gap-2">
+          <dt className="w-20 text-sm font-medium text-gray-600 dark:text-gray-400">
+            {group.label}
+          </dt>
+          {group.items.map(({ type, multiplier }) => (
+            <dd key={type} className="flex items-center gap-1">
+              <TypeBadge type={type} />
+              <span className="font-mono text-xs text-gray-600 dark:text-gray-400">
+                {formatMultiplier(multiplier)}
+              </span>
+            </dd>
+          ))}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function MatchupsSkeleton() {
+  return (
+    <div aria-hidden="true" className="space-y-3 motion-safe:animate-pulse">
+      {[0, 1].map((row) => (
+        <div key={row} className="flex gap-2">
+          <div className="h-5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-5 w-16 rounded-full bg-gray-200 dark:bg-gray-800" />
+          <div className="h-5 w-16 rounded-full bg-gray-200 dark:bg-gray-800" />
+          <div className="h-5 w-16 rounded-full bg-gray-200 dark:bg-gray-800" />
+        </div>
+      ))}
+      <span className="sr-only">Loading type matchups…</span>
+    </div>
+  );
+}
+
+function SimilarList({ pokemon }: { pokemon: PokemonSummary[] }) {
+  if (pokemon.length === 0) {
+    return <p className="text-gray-600 dark:text-gray-400">None found.</p>;
+  }
+  return (
+    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      {pokemon.map((p) => (
+        <PokemonCard key={p.id} pokemon={p} />
+      ))}
+    </ul>
+  );
+}
+
+function SimilarSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid grid-cols-2 gap-4 motion-safe:animate-pulse sm:grid-cols-3 lg:grid-cols-6"
+    >
+      {Array.from({ length: 6 }, (_, i) => (
+        <div
+          key={i}
+          className="h-44 rounded-2xl bg-gray-200 dark:bg-gray-800"
+        />
+      ))}
+      <span className="sr-only">Loading similar Pokémon…</span>
+    </div>
+  );
+}
+
+function StreamError({ children }: { children: React.ReactNode }) {
+  return (
+    <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+      {children}
+    </p>
   );
 }
 

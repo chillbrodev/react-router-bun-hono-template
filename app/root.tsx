@@ -8,8 +8,10 @@ import {
   Scripts,
   ScrollRestoration,
   useNavigation,
+  useRouteLoaderData,
 } from "react-router";
 
+import { teamContext, teamMiddleware } from "~/lib/team.server";
 import type { Route } from "./+types/root";
 import stylesheet from "./app.css?url";
 
@@ -28,6 +30,13 @@ export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://raw.githubusercontent.com" },
   { rel: "stylesheet", href: stylesheet },
 ];
+
+// Runs on the server before every loader/action (see `~/lib/team.server`)
+export const middleware: Route.MiddlewareFunction[] = [teamMiddleware];
+
+export function loader({ context }: Route.LoaderArgs) {
+  return { teamSize: context.get(teamContext).ids.length };
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -55,6 +64,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <PokeballIcon />
               <span className="text-xl font-bold tracking-tight">Pokédex</span>
             </Link>
+            <TeamLink />
           </div>
           <NavigationProgress />
         </header>
@@ -79,6 +89,24 @@ export function Layout({ children }: { children: ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+function TeamLink() {
+  // `Layout` also renders error pages, where the root loader may not have run
+  const teamSize = useRouteLoaderData<typeof loader>("root")?.teamSize ?? 0;
+
+  return (
+    <Link
+      to="/team"
+      className="ml-auto flex items-center gap-2 rounded-full bg-red-700 px-4 py-1.5 text-sm font-semibold hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+    >
+      My team
+      <span className="rounded-full bg-white px-2 text-xs text-red-700 tabular-nums">
+        {teamSize}
+        <span className="sr-only"> Pokémon</span>
+      </span>
+    </Link>
   );
 }
 
